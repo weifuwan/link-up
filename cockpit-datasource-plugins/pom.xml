@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.apache.cockpit</groupId>
+        <artifactId>link-up</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>cockpit-datasource-plugins</artifactId>
+    <version>1.0.0</version>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>cockpit-datasource-sqlserver</module>
+        <module>cockpit-datasource-db2</module>
+        <module>cockpit-datasource-hive3</module>
+        <module>cockpit-datasource-mysql</module>
+        <module>cockpit-datasource-oracle</module>
+        <module>cockpit-datasource-postgresql</module>
+        <module>cockpit-datasource-opengauss</module>
+        <module>cockpit-datasource-api</module>
+        <module>cockpit-datasource-all</module>
+        <module>cockpit-datasource-doris</module>
+        <module>cockpit-datasource-cache</module>
+        <module>cockpit-datasource-mongodb</module>
+        <module>cockpit-datasource-elasticsearch</module>
+        <module>cockpit-datasource-starrocks</module>
+        <module>cockpit-datasource-clickhouse</module>
+        <module>cockpit-datasource-dm</module>
+    </modules>
+
+
+</project>

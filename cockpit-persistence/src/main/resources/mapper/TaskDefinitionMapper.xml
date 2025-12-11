@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.apache.cockpit.persistence.integration.TaskDefinitionMapper">
+
+    <!-- TaskDefinitionMapper.xml -->
+    <select id="selectTaskDefinitionWithLatestStatus"
+            resultType="org.apache.cockpit.common.bean.vo.integration.TaskDefinitionVO">
+        SELECT
+        d.*,
+        e.status,
+        e.id as executionId,
+        e.start_time,
+        e.end_time,
+        e.source_total_record,
+        e.sink_total_record,
+        e.source_total_bytes,
+        e.sink_total_bytes,
+        e.execution_mode,
+        ts.cron_expression,
+        ts.schedule_status,
+        ts.last_schedule_time,
+        ts.next_schedule_time,
+        ts.id as task_schedule_id
+        FROM t_cockpit_integration_task_definition d
+        LEFT JOIN (
+        SELECT e1.*
+        FROM t_cockpit_integration_task_execution e1
+        INNER JOIN (
+        SELECT definition_id, MAX(create_time) as max_create_time
+        FROM t_cockpit_integration_task_execution
+        GROUP BY definition_id
+        ) e2 ON e1.definition_id = e2.definition_id AND e1.create_time = e2.max_create_time
+        ) e ON d.id = e.definition_id
+        INNER JOIN t_cockpit_integration_task_schedule ts
+        ON d.id = ts.task_definition_id
+        <where>
+            <if test="dto.name != null and dto.name != ''">
+                AND d.name LIKE CONCAT('%', #{dto.name}, '%')
+            </if>
+            <if test="dto.status != null and dto.status != ''">
+                AND e.status = #{dto.status}
+            </if>
+            <if test="dto.sourceType != null">
+                AND d.source_type = #{dto.sourceType}
+            </if>
+            <if test="dto.sinkType != null">
+                AND d.sink_type = #{dto.sinkType}
+            </if>
+            <if test="dto.startTime != null and dto.endTime != null">
+                AND d.create_time BETWEEN #{dto.startTime} AND #{dto.endTime}
+            </if>
+        </where>
+        ORDER BY d.create_time DESC
+    </select>
+
+
+</mapper>

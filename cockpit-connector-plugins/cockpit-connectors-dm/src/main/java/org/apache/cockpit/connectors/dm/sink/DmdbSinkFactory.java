@@ -1,0 +1,243 @@
+package org.apache.cockpit.connectors.dm.sink;
+
+import com.google.auto.service.AutoService;
+import org.apache.cockpit.common.spi.enums.DbType;
+import org.apache.cockpit.connectors.api.catalog.*;
+import org.apache.cockpit.connectors.api.config.ConnectorCommonOptions;
+import org.apache.cockpit.connectors.api.config.OptionRule;
+import org.apache.cockpit.connectors.api.config.ReadonlyConfig;
+import org.apache.cockpit.connectors.api.connector.TableSink;
+import org.apache.cockpit.connectors.api.factory.Factory;
+import org.apache.cockpit.connectors.api.factory.TableSinkFactory;
+import org.apache.cockpit.connectors.api.factory.TableSinkFactoryContext;
+import org.apache.cockpit.connectors.api.jdbc.catalog.JdbcCatalogOptions;
+import org.apache.cockpit.connectors.api.jdbc.config.JdbcOptions;
+import org.apache.cockpit.connectors.api.jdbc.config.JdbcSinkConfig;
+import org.apache.cockpit.connectors.api.jdbc.dialect.JdbcDialect;
+import org.apache.cockpit.connectors.api.jdbc.dialect.JdbcDialectLoader;
+import org.apache.cockpit.connectors.api.jdbc.dialect.dialectenum.FieldIdeEnum;
+import org.apache.cockpit.connectors.api.jdbc.sink.DataSaveMode;
+import org.apache.cockpit.connectors.api.jdbc.sink.SchemaSaveMode;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import static org.apache.cockpit.connectors.api.jdbc.catalog.JdbcCatalogOptions.CREATE_INDEX;
+import static org.apache.cockpit.connectors.api.jdbc.config.JdbcOptions.*;
+import static org.apache.cockpit.connectors.api.jdbc.sink.SinkConnectorCommonOptions.MULTI_TABLE_SINK_REPLICA;
+import static org.apache.cockpit.connectors.api.jdbc.sink.SinkReplaceNameConstant.*;
+
+
+@AutoService(Factory.class)
+public class DmdbSinkFactory implements TableSinkFactory {
+    @Override
+    public String factoryIdentifier() {
+        return DbType.DAMENG.getCode();
+    }
+
+    private ReadonlyConfig getCatalogOptions(TableSinkFactoryContext context) {
+        ReadonlyConfig config = context.getOptions();
+        // TODO Remove obsolete code
+        Optional<Map<String, String>> catalogOptions =
+                config.getOptional(ConnectorCommonOptions.CATALOG_OPTIONS);
+        if (catalogOptions.isPresent()) {
+            return ReadonlyConfig.fromMap(new HashMap<>(catalogOptions.get()));
+        }
+        return config;
+    }
+
+    @Override
+    public TableSink createSink(TableSinkFactoryContext context) {
+        ReadonlyConfig config = context.getOptions();
+        CatalogTable catalogTable = context.getCatalogTable();
+        ReadonlyConfig catalogOptions = getCatalogOptions(context);
+        Optional<String> optionalTable = config.getOptional(TABLE);
+        Optional<String> optionalDatabase = config.getOptional(DATABASE);
+        if (!optionalTable.isPresent()) {
+            optionalTable = Optional.of(REPLACE_TABLE_NAME_KEY);
+        }
+        // get source table relevant information
+        TableIdentifier tableId = catalogTable.getTableId();
+        String sourceDatabaseName = tableId.getDatabaseName();
+        String sourceSchemaName = tableId.getSchemaName();
+        String pluginInputIdentifier = tableId.getTableName();
+        // get sink table relevant information
+        String sinkDatabaseName = optionalDatabase.orElse(REPLACE_DATABASE_NAME_KEY);
+        String sinkTableNameBefore = optionalTable.get();
+        String[] sinkTableSplitArray = sinkTableNameBefore.split("\\.");
+        String sinkTableName = sinkTableSplitArray[sinkTableSplitArray.length - 1];
+        String sinkSchemaName;
+        if (sinkTableSplitArray.length > 1) {
+            sinkSchemaName = sinkTableSplitArray[sinkTableSplitArray.length - 2];
+        } else {
+            sinkSchemaName = null;
+        }
+        if (StringUtils.isNotBlank(catalogOptions.get(JdbcCatalogOptions.SCHEMA))) {
+            sinkSchemaName = catalogOptions.get(JdbcCatalogOptions.SCHEMA);
+        }
+        // to add tablePrefix and tableSuffix
+        String tempTableName;
+        String prefix = catalogOptions.get(JdbcCatalogOptions.TABLE_PREFIX);
+        String suffix = catalogOptions.get(JdbcCatalogOptions.TABLE_SUFFIX);
+        if (StringUtils.isNotEmpty(prefix) || StringUtils.isNotEmpty(suffix)) {
+            tempTableName = StringUtils.isNotEmpty(prefix) ? prefix + sinkTableName : sinkTableName;
+            tempTableName = StringUtils.isNotEmpty(suffix) ? tempTableName + suffix : tempTableName;
+
+        } else {
+            tempTableName = sinkTableName;
+        }
+        // to replace
+        String finalDatabaseName = sinkDatabaseName;
+        if (StringUtils.isNotEmpty(sourceDatabaseName)) {
+            finalDatabaseName =
+                    sinkDatabaseName.replace(REPLACE_DATABASE_NAME_KEY, sourceDatabaseName);
+        }
+
+        String finalSchemaName;
+        if (sinkSchemaName != null) {
+            if (sourceSchemaName == null) {
+                finalSchemaName = sinkSchemaName;
+            } else {
+                finalSchemaName = sinkSchemaName.replace(REPLACE_SCHEMA_NAME_KEY, sourceSchemaName);
+            }
+        } else {
+            finalSchemaName = null;
+        }
+        String finalTableName = sinkTableName;
+        if (StringUtils.isNotEmpty(pluginInputIdentifier)) {
+            finalTableName = tempTableName.replace(REPLACE_TABLE_NAME_KEY, pluginInputIdentifier);
+        }
+
+        // rebuild TableIdentifier and catalogTable
+        TableIdentifier newTableId =
+                TableIdentifier.of(
+                        tableId.getCatalogName(),
+                        finalDatabaseName,
+                        finalSchemaName,
+                        finalTableName);
+        catalogTable =
+                CatalogTable.of(
+                        newTableId,
+                        catalogTable.getTableSchema(),
+                        catalogTable.getOptions(),
+                        catalogTable.getPartitionKeys(),
+                        catalogTable.getComment(),
+                        catalogTable.getCatalogName());
+        Map<String, String> map = config.toMap();
+        if (catalogTable.getTableId().getSchemaName() != null) {
+            map.put(
+                    TABLE.key(),
+                    catalogTable.getTableId().getSchemaName()
+                            + "."
+                            + catalogTable.getTableId().getTableName());
+        } else {
+            map.put(TABLE.key(), catalogTable.getTableId().getTableName());
+        }
+        map.put(DATABASE.key(), catalogTable.getTableId().getDatabaseName());
+        PrimaryKey primaryKey = catalogTable.getTableSchema().getPrimaryKey();
+        if (!config.getOptional(PRIMARY_KEYS).isPresent()) {
+            if (primaryKey != null && !CollectionUtils.isEmpty(primaryKey.getColumnNames())) {
+                map.put(PRIMARY_KEYS.key(), String.join(",", primaryKey.getColumnNames()));
+            } else {
+                Optional<ConstraintKey> keyOptional =
+                        catalogTable.getTableSchema().getConstraintKeys().stream()
+                                .filter(
+                                        key ->
+                                                ConstraintKey.ConstraintType.UNIQUE_KEY.equals(
+                                                        key.getConstraintType()))
+                                .findFirst();
+                if (keyOptional.isPresent()) {
+                    map.put(
+                            PRIMARY_KEYS.key(),
+                            keyOptional.get().getColumnNames().stream()
+                                    .map(key -> key.getColumnName())
+                                    .collect(Collectors.joining(",")));
+                }
+            }
+        } else {
+            // replace primary key to config
+            PrimaryKey configPk =
+                    PrimaryKey.of(
+                            catalogTable.getTablePath().getTableName() + "_config_pk",
+                            config.get(PRIMARY_KEYS));
+            TableSchema tableSchema = catalogTable.getTableSchema();
+            catalogTable =
+                    CatalogTable.of(
+                            catalogTable.getTableId(),
+                            TableSchema.builder()
+                                    .primaryKey(configPk)
+                                    .constraintKey(tableSchema.getConstraintKeys())
+                                    .columns(tableSchema.getColumns())
+                                    .build(),
+                            catalogTable.getOptions(),
+                            catalogTable.getPartitionKeys(),
+                            catalogTable.getComment(),
+                            catalogTable.getCatalogName());
+        }
+        config = ReadonlyConfig.fromMap(new HashMap<>(map));
+        // always execute
+        final ReadonlyConfig options = config;
+        JdbcSinkConfig sinkConfig = JdbcSinkConfig.of(config);
+        FieldIdeEnum fieldIdeEnum = config.get(JdbcOptions.FIELD_IDE);
+        catalogTable
+                .getOptions()
+                .put("fieldIde", fieldIdeEnum == null ? null : fieldIdeEnum.getValue());
+        JdbcDialect dialect =
+                JdbcDialectLoader.load(
+                        sinkConfig.getJdbcConnectionConfig().getJdbcUrl(),
+                        sinkConfig.getJdbcConnectionConfig().getCompatibleMode(),
+                        sinkConfig.getJdbcConnectionConfig().getDialect(),
+                        fieldIdeEnum == null ? null : fieldIdeEnum.getValue());
+        dialect.connectionUrlParse(
+                sinkConfig.getJdbcConnectionConfig().getJdbcUrl(),
+                sinkConfig.getJdbcConnectionConfig().getProperties(),
+                dialect.defaultParameter());
+        CatalogTable finalCatalogTable = catalogTable;
+        // get saveMode
+        DataSaveMode dataSaveMode = config.get(DATA_SAVE_MODE);
+        SchemaSaveMode schemaSaveMode = config.get(SCHEMA_SAVE_MODE);
+        return () ->
+                new DmdbSink(
+                        options,
+                        sinkConfig,
+                        dialect,
+                        schemaSaveMode,
+                        dataSaveMode,
+                        finalCatalogTable);
+    }
+
+    @Override
+    public OptionRule optionRule() {
+        return OptionRule.builder()
+                .required(JDBC_URL, DRIVER, SCHEMA_SAVE_MODE, DATA_SAVE_MODE)
+                .optional(
+                        CREATE_INDEX,
+                        USERNAME,
+                        PASSWORD,
+                        CONNECTION_CHECK_TIMEOUT_SEC,
+                        BATCH_SIZE,
+                        IS_EXACTLY_ONCE,
+                        GENERATE_SINK_SQL,
+                        AUTO_COMMIT,
+                        SUPPORT_UPSERT_BY_QUERY_PRIMARY_KEY_EXIST,
+                        PRIMARY_KEYS,
+                        COMPATIBLE_MODE,
+                        MULTI_TABLE_SINK_REPLICA,
+                        DIALECT)
+                .conditional(
+                        IS_EXACTLY_ONCE,
+                        true,
+                        XA_DATA_SOURCE_CLASS_NAME,
+                        MAX_COMMIT_ATTEMPTS,
+                        TRANSACTION_TIMEOUT_SEC)
+                .conditional(IS_EXACTLY_ONCE, false, MAX_RETRIES)
+                .conditional(GENERATE_SINK_SQL, true, DATABASE)
+                .conditional(GENERATE_SINK_SQL, false, QUERY)
+                .conditional(DATA_SAVE_MODE, DataSaveMode.CUSTOM_PROCESSING, CUSTOM_SQL)
+                .build();
+    }
+}

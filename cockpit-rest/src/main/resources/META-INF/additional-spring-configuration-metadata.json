@@ -1,0 +1,8 @@
+{
+  "properties": [
+    {
+      "name": "monitoring.collection.enabled",
+      "type": "java.lang.String",
+      "description": "Description for monitoring.collection.enabled."
+  }
+] }

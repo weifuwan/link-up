@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.apache.cockpit</groupId>
+        <artifactId>link-up</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>cockpit-connector-plugins</artifactId>
+    <version>1.0.0</version>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>cockpit-connectors-all</module>
+        <module>cockpit-connectors-api</module>
+        <module>cockpit-connectors-mysql</module>
+        <module>cockpit-connectors-oracle</module>
+        <module>cockpit-connectors-elasticsearch</module>
+        <module>cockpit-connectors-psql</module>
+        <module>cockpit-connectors-opengauss</module>
+        <module>cockpit-connectors-console</module>
+        <module>cockpit-connectors-sqlserver</module>
+        <module>cockpit-connectors-cache</module>
+        <module>cockpit-connectors-doris</module>
+        <module>cockpit-connectors-mongodb</module>
+        <module>cockpit-connectors-clickhouse</module>
+        <module>cockpit-connectors-db2</module>
+        <module>cockpit-connectors-starrocks</module>
+        <module>cockpit-connectors-influxdb</module>
+        <module>cockpit-connectors-hive3</module>
+        <module>cockpit-connectors-dm</module>
+    </modules>
+
+
+</project>

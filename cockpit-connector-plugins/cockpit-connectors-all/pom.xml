@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.apache.cockpit</groupId>
+        <artifactId>cockpit-connector-plugins</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>cockpit-connectors-all</artifactId>
+    <version>1.0.0</version>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.cockpit</groupId>
+            <artifactId>cockpit-connectors-mysql</artifactId>
+            <version>${cockpit.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.cockpit</groupId>
+            <artifactId>cockpit-connectors-influxdb</artifactId>
+            <version>${cockpit.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.cockpit</groupId>
+            <artifactId>cockpit-connectors-hive3</artifactId>
+            <version>${cockpit.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.cockpit</groupId>
+            <artifactId>cockpit-connectors-sqlserver</artifactId>
+            <version>${cockpit.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.cockpit</groupId>
+            <artifactId>cockpit-connectors-oracle</artifactId>
+            <version>${cockpit.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.cockpit</groupId>
+            <artifactId>cockpit-connectors-console</artifactId>
+            <version>${cockpit.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.cockpit</groupId>
+            <artifactId>cockpit-connectors-psql</artifactId>
+            <version>${cockpit.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.cockpit</groupId>
+            <artifactId>cockpit-connectors-opengauss</artifactId>
+            <version>${cockpit.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.cockpit</groupId>
+            <artifactId>cockpit-connectors-cache</artifactId>
+            <version>${cockpit.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.cockpit</groupId>
+            <artifactId>cockpit-connectors-doris</artifactId>
+            <version>${cockpit.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.cockpit</groupId>
+            <artifactId>cockpit-connectors-db2</artifactId>
+            <version>${cockpit.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.cockpit</groupId>
+            <artifactId>cockpit-connectors-dm</artifactId>
+            <version>${cockpit.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.cockpit</groupId>
+            <artifactId>cockpit-connectors-clickhouse</artifactId>
+            <version>${cockpit.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.cockpit</groupId>
+            <artifactId>cockpit-connectors-starrocks</artifactId>
+            <version>${cockpit.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.cockpit</groupId>
+            <artifactId>cockpit-connectors-mongodb</artifactId>
+            <version>${cockpit.version}</version>
+        </dependency>
+    </dependencies>
+
+
+</project>

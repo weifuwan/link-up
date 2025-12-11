@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.apache.cockpit</groupId>
+        <artifactId>cockpit-connector-plugins</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>cockpit-connectors-mongodb</artifactId>
+    <version>1.0.0</version>
+
+    <properties>
+        <mongo.driver.version>4.7.1</mongo.driver.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.cockpit</groupId>
+            <artifactId>cockpit-common</artifactId>
+            <version>${cockpit.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.cockpit</groupId>
+            <artifactId>cockpit-connectors-api</artifactId>
+            <version>${cockpit.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mongodb</groupId>
+            <artifactId>mongodb-driver-sync</artifactId>
+            <version>${mongo.driver.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mongodb</groupId>
+            <artifactId>mongodb-driver-core</artifactId>
+            <version>${mongo.driver.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mongodb</groupId>
+            <artifactId>bson</artifactId>
+            <version>${mongo.driver.version}</version>
+        </dependency>
+    </dependencies>
+
+
+</project>

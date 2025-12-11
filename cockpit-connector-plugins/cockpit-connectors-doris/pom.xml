@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.apache.cockpit</groupId>
+        <artifactId>cockpit-connector-plugins</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>cockpit-connectors-doris</artifactId>
+    <version>1.0.0</version>
+
+    <properties>
+        <httpclient.version>4.5.13</httpclient.version>
+        <httpcore.version>4.4.4</httpcore.version>
+        <commons-io.version>2.11.0</commons-io.version>
+        <thrift-service.version>1.0.0</thrift-service.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.cockpit</groupId>
+            <artifactId>cockpit-common</artifactId>
+            <version>${cockpit.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.cockpit</groupId>
+            <artifactId>cockpit-connectors-api</artifactId>
+            <version>${cockpit.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-csv</artifactId>
+            <version>1.10.0</version>
+        </dependency>
+
+
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+            <version>${httpclient.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpcore</artifactId>
+            <version>${httpcore.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>${commons-io.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.doris</groupId>
+            <artifactId>thrift-service</artifactId>
+            <version>${thrift-service.version}</version>
+        </dependency>
+
+
+    </dependencies>
+
+
+</project>

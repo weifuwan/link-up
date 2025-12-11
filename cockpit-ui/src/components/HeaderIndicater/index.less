@@ -1,0 +1,38 @@
+.data-indicator-card-wrapper {
+  width: 100%;
+  height: auto;
+  position: relative;
+  display: flex;
+}
+
+.data-indicator-card-wrapper:before {
+  content: "";
+  position: absolute;
+  width: 4px;
+  height: 16px;
+  background: rgba(0, 51, 204, 0.9);
+  left: 0;
+  top: 4px;
+  z-index: 2;
+}
+
+.data-indicator-card-wrapper .data-indicator-card-title {
+  width: fit-content;
+  padding-right: 8px;
+  line-height: 24px;
+  z-index: 1;
+  position: relative;
+  padding-left: 12px;
+  font-family: PingFangSC-Medium;
+  font-size: 14px;
+  color: rgba(38,40,44,1);
+}
+
+.data-indicator-card-wrapper:after {
+  flex: 1;
+  margin-top: 12px;
+  height: 1px;
+  background-color: rgba(246,246,246,1);
+  z-index: 0;
+  content: "";
+}

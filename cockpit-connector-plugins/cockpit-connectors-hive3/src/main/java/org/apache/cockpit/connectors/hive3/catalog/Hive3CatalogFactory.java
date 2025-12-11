@@ -1,0 +1,49 @@
+package org.apache.cockpit.connectors.hive3.catalog;
+
+import com.google.auto.service.AutoService;
+import com.google.common.base.Preconditions;
+import org.apache.cockpit.common.spi.enums.DbType;
+import org.apache.cockpit.connectors.api.catalog.Catalog;
+import org.apache.cockpit.connectors.api.config.OptionRule;
+import org.apache.cockpit.connectors.api.config.ReadonlyConfig;
+import org.apache.cockpit.connectors.api.factory.CatalogFactory;
+import org.apache.cockpit.connectors.api.factory.Factory;
+import org.apache.cockpit.connectors.api.jdbc.catalog.JdbcCatalogOptions;
+import org.apache.cockpit.connectors.api.jdbc.config.JdbcOptions;
+import org.apache.cockpit.connectors.api.util.JdbcUrlUtil;
+import org.apache.cockpit.connectors.hive3.config.FileBaseSinkOptions;
+import org.apache.commons.lang3.StringUtils;
+
+
+@AutoService(Factory.class)
+public class Hive3CatalogFactory implements CatalogFactory {
+
+
+    @Override
+    public Catalog createCatalog(String catalogName, ReadonlyConfig options) {
+        String urlWithDatabase = options.get(JdbcCatalogOptions.BASE_URL);
+        Preconditions.checkArgument(
+                StringUtils.isNoneBlank(urlWithDatabase),
+                "Miss config <base-url>! Please check your config.");
+        JdbcUrlUtil.UrlInfo urlInfo = JdbcUrlUtil.getUrlInfo(urlWithDatabase);
+        return new Hive3Catalog(
+                catalogName,
+                options.get(JdbcCatalogOptions.USERNAME),
+                options.get(JdbcCatalogOptions.PASSWORD),
+                urlInfo,
+                options.get(JdbcCatalogOptions.DRIVER),
+                options.get(JdbcOptions.DRIVER_LOCATION),null);
+    }
+
+    @Override
+    public String factoryIdentifier() {
+        return DbType.HIVE3.getCode();
+    }
+
+    @Override
+    public OptionRule optionRule() {
+        return OptionRule.builder()
+                .required()
+                .build();
+    }
+}

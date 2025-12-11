@@ -1,0 +1,12 @@
+-- 单表模式
+## mysql to mysql
+{"env":{"parallelism":5},"source":{"plugin-type":"MYSQL","jdbcUrl":"jdbc:mysql://192.168.1.113:3306/dmp","user":"root","password":"123456","table_path":"dmp.data_source","query":"select * from data_source","driver":"com.mysql.cj.jdbc.Driver","connection_check_timeout_sec":100,"dialect":"MySQL","fetch_size":10000,"properties":{"useSSL":false}},"sink":{"plugin-type":"MYSQL","user":"root","password":"123456","table":"data_source","database":"cockpit","schema_save_mode":"CREATE_SCHEMA_WHEN_NOT_EXIST","data_save_mode":"APPEND_DATA","generate_sink_sql":true,"driver":"com.mysql.cj.jdbc.Driver","jdbcUrl":"jdbc:mysql://192.168.1.113:3306/cockpit"}}
+
+## mysql to console
+{"env":{"parallelism":5},"source":{"plugin-type":"MYSQL","jdbcUrl":"jdbc:mysql://192.168.1.113:3306/dmp","user":"root","password":"123456","table_path":"dmp.data_source","query":"select * from data_source","driver":"com.mysql.cj.jdbc.Driver","connection_check_timeout_sec":100,"dialect":"MySQL","fetch_size":10000,"properties":{"useSSL":false}},"sink":{"plugin-type":"CONSOLE"}}
+
+## mysql to openguass
+{"env":{"parallelism":5},"source":{"plugin-type":"MYSQL","jdbcUrl":"jdbc:mysql://192.168.1.113:3306/dmp","user":"root","password":"123456","table_path":"dmp.data_source","query":"select * from data_source","driver":"com.mysql.cj.jdbc.Driver","connection_check_timeout_sec":100,"dialect":"MySQL","fetch_size":10000,"properties":{"useSSL":false}},"sink":{"plugin-type":"OPENGAUSS","user":"gaussdb","password":"Jykj1994@","table":"public.data_source","database":"postgres","generate_sink_sql":true,"driver":"org.postgresql.Driver","dialect":"OpenGauss","jdbcUrl":"jdbc:postgresql://192.168.1.115:8888/postgres"}}
+
+/* mysql to oracle */
+{"env":{"parallelism":5},"source":{"plugin-type":"MYSQL","jdbcUrl":"jdbc:mysql://192.168.1.113:3306/dmp","user":"root","password":"123456","table_path":"dmp.data_source","query":"select * from data_source","driver":"com.mysql.cj.jdbc.Driver","connection_check_timeout_sec":100,"dialect":"MySQL","fetch_size":10000,"properties":{"useSSL":false}},"sink":{"plugin-type":"ORACLE","user":"C##WFW","password":"123456","table":"C##WFW.data_source","database": "orclcdb","generate_sink_sql":true,"driver":"oracle.jdbc.OracleDriver","dialect":"Oracle","jdbcUrl":"jdbc:oracle:thin:@192.168.1.114:1521:orclcdb"}}

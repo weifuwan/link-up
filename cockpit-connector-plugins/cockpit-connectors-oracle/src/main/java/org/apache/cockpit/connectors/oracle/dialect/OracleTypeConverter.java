@@ -1,0 +1,408 @@
+package org.apache.cockpit.connectors.oracle.dialect;
+
+import com.google.auto.service.AutoService;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.cockpit.connectors.api.catalog.Column;
+import org.apache.cockpit.connectors.api.catalog.PhysicalColumn;
+import org.apache.cockpit.connectors.api.catalog.exception.CommonError;
+import org.apache.cockpit.connectors.api.jdbc.config.JdbcOptions;
+import org.apache.cockpit.connectors.api.jdbc.converter.BasicTypeDefine;
+import org.apache.cockpit.connectors.api.jdbc.converter.TypeConverter;
+import org.apache.cockpit.connectors.api.jdbc.dialect.DatabaseIdentifier;
+import org.apache.cockpit.connectors.api.type.BasicType;
+import org.apache.cockpit.connectors.api.type.DecimalType;
+import org.apache.cockpit.connectors.api.type.LocalTimeType;
+import org.apache.cockpit.connectors.api.type.PrimitiveByteArrayType;
+import org.apache.cockpit.connectors.api.util.TypeDefineUtils;
+
+// reference https://docs.oracle.com/en/database/oracle/oracle-database/19/sqlrf/Data-Types.html
+@Slf4j
+@AutoService(TypeConverter.class)
+public class OracleTypeConverter implements TypeConverter<BasicTypeDefine> {
+    // ============================data types=====================
+    // -------------------------number----------------------------
+    public static final String ORACLE_BINARY_DOUBLE = "BINARY_DOUBLE";
+    public static final String ORACLE_BINARY_FLOAT = "BINARY_FLOAT";
+    public static final String ORACLE_NUMBER = "NUMBER";
+    public static final String ORACLE_FLOAT = "FLOAT";
+    public static final String ORACLE_REAL = "REAL";
+    public static final String ORACLE_INTEGER = "INTEGER";
+
+    // -------------------------string----------------------------
+    public static final String ORACLE_CHAR = "CHAR";
+    public static final String ORACLE_NCHAR = "NCHAR";
+    public static final String ORACLE_VARCHAR = "VARCHAR";
+    public static final String ORACLE_VARCHAR2 = "VARCHAR2";
+    public static final String ORACLE_NVARCHAR2 = "NVARCHAR2";
+    public static final String ORACLE_LONG = "LONG";
+    public static final String ORACLE_ROWID = "ROWID";
+    public static final String ORACLE_CLOB = "CLOB";
+    public static final String ORACLE_NCLOB = "NCLOB";
+    public static final String ORACLE_XML = "XMLTYPE";
+    public static final String ORACLE_SYS_XML = "SYS.XMLTYPE";
+
+    // ------------------------------time-------------------------
+    public static final String ORACLE_DATE = "DATE";
+    public static final String ORACLE_TIMESTAMP = "TIMESTAMP";
+    public static final String ORACLE_TIMESTAMP_WITH_TIME_ZONE =
+            ORACLE_TIMESTAMP + " WITH TIME ZONE";
+    public static final String ORACLE_TIMESTAMP_WITH_LOCAL_TIME_ZONE =
+            ORACLE_TIMESTAMP + " WITH LOCAL TIME ZONE";
+
+    // ------------------------------blob-------------------------
+    public static final String ORACLE_BLOB = "BLOB";
+    public static final String ORACLE_RAW = "RAW";
+    public static final String ORACLE_LONG_RAW = "LONG RAW";
+
+    public static final int MAX_PRECISION = 38;
+    public static final int DEFAULT_PRECISION = MAX_PRECISION;
+    public static final int MAX_SCALE = 127;
+    public static final int DEFAULT_SCALE = 18;
+    public static final int TIMESTAMP_DEFAULT_SCALE = 6;
+    public static final int MAX_TIMESTAMP_SCALE = 9;
+    public static final long MAX_RAW_LENGTH = 2000;
+    public static final long MAX_ROWID_LENGTH = 18;
+    public static final long MAX_CHAR_LENGTH = 2000;
+    public static final long MAX_VARCHAR_LENGTH = 4000;
+
+    public static final long BYTES_2GB = (long) Math.pow(2, 31);
+    public static final long BYTES_4GB = (long) Math.pow(2, 32);
+    public static final OracleTypeConverter INSTANCE = new OracleTypeConverter();
+
+    private final boolean decimalTypeNarrowing;
+    private final boolean handleBlobAsString;
+
+    public OracleTypeConverter() {
+        this(true, JdbcOptions.HANDLE_BLOB_AS_STRING.defaultValue());
+    }
+
+    public OracleTypeConverter(boolean decimalTypeNarrowing) {
+        this(decimalTypeNarrowing, JdbcOptions.HANDLE_BLOB_AS_STRING.defaultValue());
+    }
+
+    public OracleTypeConverter(boolean decimalTypeNarrowing, boolean handleBlobAsString) {
+        this.decimalTypeNarrowing = decimalTypeNarrowing;
+        this.handleBlobAsString = handleBlobAsString;
+    }
+
+    @Override
+    public String identifier() {
+        return DatabaseIdentifier.ORACLE;
+    }
+
+    @Override
+    public Column convert(BasicTypeDefine typeDefine) {
+        PhysicalColumn.PhysicalColumnBuilder builder =
+                PhysicalColumn.builder()
+                        .name(typeDefine.getName())
+                        .sourceType(typeDefine.getColumnType())
+                        .nullable(typeDefine.isNullable())
+                        .defaultValue(typeDefine.getDefaultValue())
+                        .comment(typeDefine.getComment());
+
+        String oracleType = typeDefine.getDataType().toUpperCase();
+
+        switch (oracleType) {
+            case ORACLE_INTEGER:
+                builder.dataType(new DecimalType(DEFAULT_PRECISION, 0));
+                builder.columnLength((long) DEFAULT_PRECISION);
+                break;
+            case ORACLE_NUMBER:
+                Long precision = typeDefine.getPrecision();
+                if (precision == null || precision == 0 || precision > DEFAULT_PRECISION) {
+                    precision = Long.valueOf(DEFAULT_PRECISION);
+                }
+                Integer scale = typeDefine.getScale();
+                if (scale == null) {
+                    scale = 127;
+                }
+
+                if (scale <= 0) {
+                    int newPrecision = (int) (precision - scale);
+                    if (newPrecision <= 18 && decimalTypeNarrowing) {
+                        if (newPrecision == 1) {
+                            builder.dataType(BasicType.BOOLEAN_TYPE);
+                        } else if (newPrecision <= 9) {
+                            builder.dataType(BasicType.INT_TYPE);
+                        } else {
+                            builder.dataType(BasicType.LONG_TYPE);
+                        }
+                    } else if (newPrecision < 38) {
+                        builder.dataType(new DecimalType(newPrecision, 0));
+                        builder.columnLength((long) newPrecision);
+                    } else {
+                        builder.dataType(new DecimalType(DEFAULT_PRECISION, 0));
+                        builder.columnLength((long) DEFAULT_PRECISION);
+                    }
+                } else if (scale <= DEFAULT_SCALE) {
+                    builder.dataType(new DecimalType(precision.intValue(), scale));
+                    builder.columnLength(precision);
+                    builder.scale(scale);
+                } else {
+                    builder.dataType(new DecimalType(precision.intValue(), DEFAULT_SCALE));
+                    builder.columnLength(precision);
+                    builder.scale(DEFAULT_SCALE);
+                }
+                break;
+            case ORACLE_FLOAT:
+                // The float type will be converted to DecimalType(10, -127),
+                // which will lose precision in the spark engine
+                DecimalType floatDecimal = new DecimalType(DEFAULT_PRECISION, DEFAULT_SCALE);
+                builder.dataType(floatDecimal);
+                builder.columnLength((long) floatDecimal.getPrecision());
+                builder.scale(floatDecimal.getScale());
+                break;
+            case ORACLE_BINARY_FLOAT:
+            case ORACLE_REAL:
+                builder.dataType(BasicType.FLOAT_TYPE);
+                break;
+            case ORACLE_BINARY_DOUBLE:
+                builder.dataType(BasicType.DOUBLE_TYPE);
+                break;
+            case ORACLE_CHAR:
+            case ORACLE_VARCHAR:
+            case ORACLE_VARCHAR2:
+                builder.dataType(BasicType.STRING_TYPE);
+                builder.columnLength(TypeDefineUtils.charTo4ByteLength(typeDefine.getLength()));
+                break;
+            case ORACLE_NCHAR:
+            case ORACLE_NVARCHAR2:
+                builder.dataType(BasicType.STRING_TYPE);
+                builder.columnLength(
+                        TypeDefineUtils.doubleByteTo4ByteLength(typeDefine.getLength()));
+                break;
+            case ORACLE_ROWID:
+                builder.dataType(BasicType.STRING_TYPE);
+                builder.columnLength(MAX_ROWID_LENGTH);
+                break;
+            case ORACLE_XML:
+            case ORACLE_SYS_XML:
+                builder.dataType(BasicType.STRING_TYPE);
+                builder.columnLength(typeDefine.getLength());
+                break;
+            case ORACLE_LONG:
+                builder.dataType(BasicType.STRING_TYPE);
+                // The maximum length of the column is 2GB-1
+                builder.columnLength(BYTES_2GB - 1);
+                break;
+            case ORACLE_CLOB:
+            case ORACLE_NCLOB:
+                builder.dataType(BasicType.STRING_TYPE);
+                // The maximum length of the column is 4GB-1
+                builder.columnLength(BYTES_4GB - 1);
+                break;
+            case ORACLE_BLOB:
+                if (handleBlobAsString) {
+                    builder.dataType(BasicType.STRING_TYPE);
+                    builder.columnLength(BYTES_4GB - 1);
+                } else {
+                    builder.dataType(PrimitiveByteArrayType.INSTANCE);
+                    builder.columnLength(BYTES_4GB - 1);
+                }
+                break;
+            case ORACLE_RAW:
+                builder.dataType(PrimitiveByteArrayType.INSTANCE);
+                if (typeDefine.getLength() == null || typeDefine.getLength() == 0) {
+                    builder.columnLength(MAX_RAW_LENGTH);
+                } else {
+                    builder.columnLength(typeDefine.getLength());
+                }
+                break;
+            case ORACLE_LONG_RAW:
+                builder.dataType(PrimitiveByteArrayType.INSTANCE);
+                // The maximum length of the column is 2GB-1
+                builder.columnLength(BYTES_2GB - 1);
+                break;
+            case ORACLE_DATE:
+                builder.dataType(LocalTimeType.LOCAL_DATE_TIME_TYPE);
+                break;
+            case ORACLE_TIMESTAMP:
+            case ORACLE_TIMESTAMP_WITH_TIME_ZONE:
+            case ORACLE_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                builder.dataType(LocalTimeType.LOCAL_DATE_TIME_TYPE);
+                if (typeDefine.getScale() == null) {
+                    builder.scale(TIMESTAMP_DEFAULT_SCALE);
+                } else {
+                    builder.scale(typeDefine.getScale());
+                }
+                break;
+            default:
+                throw CommonError.convertToSeaTunnelTypeError(
+                        DatabaseIdentifier.ORACLE, oracleType, typeDefine.getName());
+        }
+        return builder.build();
+    }
+
+    @Override
+    public BasicTypeDefine<Object> reconvert(Column column) {
+        BasicTypeDefine.BasicTypeDefineBuilder<Object> builder =
+                BasicTypeDefine.builder()
+                        .name(column.getName())
+                        .nullable(column.isNullable())
+                        .comment(column.getComment())
+                        .defaultValue(column.getDefaultValue());
+        switch (column.getDataType().getSqlType()) {
+            case BOOLEAN:
+                builder.columnType(String.format("%s(%s)", ORACLE_NUMBER, 1));
+                builder.dataType(ORACLE_NUMBER);
+                builder.length(1L);
+                break;
+            case TINYINT:
+            case SMALLINT:
+            case INT:
+            case BIGINT:
+                builder.columnType(ORACLE_INTEGER);
+                builder.dataType(ORACLE_INTEGER);
+                break;
+            case FLOAT:
+                builder.columnType(ORACLE_BINARY_FLOAT);
+                builder.dataType(ORACLE_BINARY_FLOAT);
+                break;
+            case DOUBLE:
+                builder.columnType(ORACLE_BINARY_DOUBLE);
+                builder.dataType(ORACLE_BINARY_DOUBLE);
+                break;
+            case DECIMAL:
+                DecimalType decimalType = (DecimalType) column.getDataType();
+                long precision = decimalType.getPrecision();
+                int scale = decimalType.getScale();
+                if (precision <= 0) {
+                    precision = DEFAULT_PRECISION;
+                    scale = DEFAULT_SCALE;
+                    log.warn(
+                            "The decimal column {} type decimal({},{}) is out of range, "
+                                    + "which is precision less than 0, "
+                                    + "it will be converted to decimal({},{})",
+                            column.getName(),
+                            decimalType.getPrecision(),
+                            decimalType.getScale(),
+                            precision,
+                            scale);
+                } else if (precision > MAX_PRECISION) {
+                    scale = (int) Math.max(0, scale - (precision - MAX_PRECISION));
+                    precision = MAX_PRECISION;
+                    log.warn(
+                            "The decimal column {} type decimal({},{}) is out of range, "
+                                    + "which exceeds the maximum precision of {}, "
+                                    + "it will be converted to decimal({},{})",
+                            column.getName(),
+                            decimalType.getPrecision(),
+                            decimalType.getScale(),
+                            MAX_PRECISION,
+                            precision,
+                            scale);
+                }
+                if (scale < 0) {
+                    scale = 0;
+                    log.warn(
+                            "The decimal column {} type decimal({},{}) is out of range, "
+                                    + "which is scale less than 0, "
+                                    + "it will be converted to decimal({},{})",
+                            column.getName(),
+                            decimalType.getPrecision(),
+                            decimalType.getScale(),
+                            precision,
+                            scale);
+                } else if (scale > MAX_SCALE) {
+                    scale = MAX_SCALE;
+                    log.warn(
+                            "The decimal column {} type decimal({},{}) is out of range, "
+                                    + "which exceeds the maximum scale of {}, "
+                                    + "it will be converted to decimal({},{})",
+                            column.getName(),
+                            decimalType.getPrecision(),
+                            decimalType.getScale(),
+                            MAX_SCALE,
+                            precision,
+                            scale);
+                }
+                builder.columnType(String.format("%s(%s,%s)", ORACLE_NUMBER, precision, scale));
+                builder.dataType(ORACLE_NUMBER);
+                builder.precision(precision);
+                builder.scale(scale);
+                break;
+            case BYTES:
+                if (column.getColumnLength() == null || column.getColumnLength() <= 0) {
+                    builder.columnType(ORACLE_BLOB);
+                    builder.dataType(ORACLE_BLOB);
+                } else if (column.getColumnLength() <= MAX_RAW_LENGTH) {
+                    builder.columnType(
+                            String.format("%s(%s)", ORACLE_RAW, column.getColumnLength()));
+                    builder.dataType(ORACLE_RAW);
+                } else {
+                    builder.columnType(ORACLE_BLOB);
+                    builder.dataType(ORACLE_BLOB);
+                }
+                break;
+            case STRING:
+                if (column.getColumnLength() == null || column.getColumnLength() <= 0) {
+                    builder.columnType(
+                            String.format("%s(%s)", ORACLE_VARCHAR2, MAX_VARCHAR_LENGTH));
+                    builder.dataType(ORACLE_VARCHAR2);
+                } else if (column.getColumnLength() <= MAX_VARCHAR_LENGTH) {
+                    builder.columnType(
+                            String.format("%s(%s)", ORACLE_VARCHAR2, column.getColumnLength()));
+                    builder.dataType(ORACLE_VARCHAR2);
+                } else {
+                    builder.columnType(ORACLE_CLOB);
+                    builder.dataType(ORACLE_CLOB);
+                }
+                break;
+            case DATE:
+                builder.columnType(ORACLE_DATE);
+                builder.dataType(ORACLE_DATE);
+                break;
+            case TIMESTAMP:
+                if (column.getScale() == null || column.getScale() <= 0) {
+                    builder.columnType(ORACLE_TIMESTAMP_WITH_LOCAL_TIME_ZONE);
+                } else {
+                    int timestampScale = column.getScale();
+                    if (column.getScale() > MAX_TIMESTAMP_SCALE) {
+                        timestampScale = MAX_TIMESTAMP_SCALE;
+                        log.warn(
+                                "The timestamp column {} type timestamp({}) is out of range, "
+                                        + "which exceeds the maximum scale of {}, "
+                                        + "it will be converted to timestamp({})",
+                                column.getName(),
+                                column.getScale(),
+                                MAX_TIMESTAMP_SCALE,
+                                timestampScale);
+                    }
+                    builder.columnType(
+                            String.format("TIMESTAMP(%s) WITH LOCAL TIME ZONE", timestampScale));
+                    builder.scale(timestampScale);
+                }
+                builder.dataType(ORACLE_TIMESTAMP_WITH_LOCAL_TIME_ZONE);
+                break;
+            case TIME:
+                // 处理 TIME 类型
+                if (column.getScale() == null || column.getScale() <= 0) {
+                    // 默认精度
+                    builder.columnType("TIMESTAMP(6)");
+                } else {
+                    int timeScale = column.getScale();
+                    if (column.getScale() > MAX_TIMESTAMP_SCALE) {
+                        timeScale = MAX_TIMESTAMP_SCALE;
+                        log.warn(
+                                "The time column {} type time({}) is out of range, "
+                                        + "which exceeds the maximum scale of {}, "
+                                        + "it will be converted to timestamp({})",
+                                column.getName(),
+                                column.getScale(),
+                                MAX_TIMESTAMP_SCALE,
+                                timeScale);
+                    }
+                    builder.columnType(String.format("TIMESTAMP(%s)", timeScale));
+                    builder.scale(timeScale);
+                }
+                builder.dataType("TIMESTAMP");
+                break;
+            default:
+                throw CommonError.convertToConnectorTypeError(
+                        DatabaseIdentifier.ORACLE,
+                        column.getDataType().getSqlType().name(),
+                        column.getName());
+        }
+        return builder.build();
+    }
+}
